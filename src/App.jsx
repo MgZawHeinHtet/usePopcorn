@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./index.css";
 import StarRating from "./components/StarRating";
+import useMovie from "./useMovie";
+import useLocalStorage from "./useLocalStorage";
 
 const tempMovieData = [
   {
@@ -71,6 +73,19 @@ function Logo() {
 }
 
 function Search({ query, onQuery }) {
+  const inputEl = useRef(null);
+
+  useEffect(function () {
+    function callback(e) {
+      if (document.activeElement === inputEl.current) return;
+      if (e.code === "Enter") {
+        onQuery("");
+        inputEl.current.focus();
+      }
+    }
+    document.addEventListener("keydown", callback);
+    return document.addEventListener("keydown", callback);
+  }, [onQuery]);
   return (
     <input
       className="search"
@@ -78,6 +93,7 @@ function Search({ query, onQuery }) {
       placeholder="Search movies..."
       value={query}
       onChange={(e) => onQuery(e.target.value)}
+      ref={inputEl}
     />
   );
 }
@@ -253,7 +269,6 @@ function MovieDetail({
   const [isLoading, setIsLoading] = useState(true);
   const [userRating, setUserRating] = useState("");
   const [oldMovie, setOldMovie] = useState(null);
-
   const {
     Actors: actors,
     Title: title,
@@ -372,18 +387,21 @@ function MovieDetail({
   );
 }
 
-const API_KEY = "98b5bcd";
+
 const MOVIE_NAME = "catch me";
+const API_KEY = "98b5bcd";
+
 
 export default function App() {
   const [query, setQuery] = useState("");
 
-  const [movies, setMovies] = useState([]);
-  const [watched, setWatched] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [movies,loading,error] = useMovie(query)
+
+  
+  const [watched,setWatched] = useLocalStorage([],'watched')
+
   const [selectedMovieId, setSelectedMovieId] = useState("");
-  const controller = new AbortController();
+
 
   function handleSelectedId(id) {
     setSelectedMovieId((selectedId) => (id === selectedId ? null : id));
@@ -402,46 +420,9 @@ export default function App() {
     setWatched(movies);
   }
 
-  useEffect(
-    function () {
-      async function fetchMovies() {
-        try {
-          setLoading(true);
-          setError("");
-          const res = await fetch(
-            `http://www.omdbapi.com/?apikey=${API_KEY}&s=${query}`,
-            { signal: controller.signal }
-          );
 
-          if (!res.ok)
-            throw new Error("You have some error with fetching Data");
 
-          const data = await res.json();
-          if (data.Response === "False") {
-            setMovies([]);
-            throw new Error("movie not found");
-          }
-          setMovies(data.Search);
-        } catch (error) {
-          if (error.name != "AbortError") setError(error.message);
-        } finally {
-          setLoading(false);
-        }
-      }
-      if (query.length < 3) {
-        setError("");
-        setMovies([]);
-        setLoading(false);
-        return;
-      }
-      fetchMovies();
-      return function () {
-        controller.abort();
-        handleCloseDetail();
-      };
-    },
-    [query]
-  );
+  
   return (
     <>
       <Navbar>
